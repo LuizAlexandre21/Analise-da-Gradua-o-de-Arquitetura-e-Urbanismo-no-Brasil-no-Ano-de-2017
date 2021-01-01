@@ -1,0 +1,32 @@
+---
+title: "Analise da Graduação de Arquitetura e Urbanismo no Brasil no Ano de 2017"
+output: flexdashboard::flex_dashboard
+---
+
+Column {data-width=500}
+-------------------------------------
+
+### **Histograma - Numero de alunos por turno em cada região**
+
+```{r}
+ggplot(dados,aes(factor(CO_REGIAO_CURSO),fill=(CO_TURNO_GRADUACAO)))+ geom_histogram(stat="count", position = "dodge") + scale_fill_brewer(palette = "Set1")+labs(x="Região",y="Nº de Alunos", color =" Turno ")
+
+```
+
+Column {data-width=500}
+-------------------------------------
+
+### **Box Plot - Distribuição de notas por turno**
+
+```{r}
+ggplot(dados, aes(x=CO_TURNO_GRADUACAO, y=NT_OBJ_FG)) + geom_boxplot()+ labs(x="Nota",y="Turno")
+
+```   
+
+### **Box Plot - Distribuição de notas por região**
+
+```{r}
+ggplot(dados, aes(x=CO_REGIAO_CURSO, y=NT_OBJ_FG)) + geom_boxplot() +geom_boxplot()+ labs(x="Nota",y="Região")
+
+```
+```

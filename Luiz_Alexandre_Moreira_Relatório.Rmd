@@ -1,0 +1,405 @@
+---
+title: "Analise da Graduação de Arquitetura e Urbanismo no Brasil no Ano de 2017"
+author: Luiz Alexandre Moreira Barros
+date: 18/09/2020
+output: html_document
+---
+
+# **Introdução**
+
+O curso de Arquitetura e Urbanismo é bastante difundido no Brasil, oferecido por cerca de 700 faculdades públicas e privadas reconhecidas pelo Ministério da Educação(MEC).
+
+Embora a Graduação em Arquitetura e Urbanismo tenha matérias de Ciências Humanas, em muitas faculdades ela é  uma Ciência Exata. Isso porque a maioria das disciplinas exige cálculos e habilidade com números.
+
+Logo o arquiteto projeta, coordena a construção e organiza as edificações, de acordo com os critérios de estética, conforto e funcionalidade. Então o ele faz a planta, obedecendo aos regulamentos legais e às normas técnicas.
+
+O profissional formado no curso de Arquitetura pode atuar nos seguintes ramos:
+
+- Arquitetura de Interiores
+- Arquitetura Industrial
+- Arquitetura Verde
+- Edificação e Construção
+- Luminotécnica
+- Paisagismo e Ambiente
+- Restauro de Edifícios
+- Urbanismo
+
+Como citado anteriormente, o currículo do curso de Arquitetura e Urbanismo reúne disciplinas das Ciências Humanas e Exatas. As matérias abaixo fazem parte da grade curricular da maioria das faculdades, embora sempre possa haver diferenças entre uma instituição e outra:
+
+- Acústica
+- Arquitetura e Urbanismo Contemporâneo
+- Arquitetura e Urbanismo Modernista
+- Arquitetura de Interiores
+- Avaliação de Impacto Ambiental
+- Desenho Arquitetônico
+- Diversidade Étnico-Cultural
+- Estabilidade das Construções
+- Expressão Gráfica
+- Expressão Plástica
+- Fundamentação do Projeto Arquitetônico
+- Gestão Ambiental e  Responsabilidade Social
+- Gestão de Resíduos
+- Gestão de Projetos e Obras
+- Geometria
+- História da Arte
+- Instalações e Equipamentos Elétricos
+- Instalações e Equipamentos Hidráulicos
+- Luminotécnica
+- Modelos e Maquetes
+- Projeto Arquitetônico – Habitação Multifamiliar
+- Projeto Arquitetônico – Habitação Unifamiliar
+- Projeto Arquitetônico – Institucional
+- Projeto de Paisagismo Residencial
+- Projeto de Paisagismo Urbano
+- Representação Gráfica Digital
+- Resistência dos Materiais
+- Sistemas Estruturais
+- Sociologia
+- Tecnologia dos Materiais de Construção
+- Topografia
+
+Então para a avaliação da qualidade dos cursos do ensino superior brasileiros, é aplicado o Exame Nacional de Desempenho dos Estudantes (ENADE). Participam desta avaliação os alunos ingressantes e concluintes no ensino superior. O aluno que deixa de participar do ENADE é impedido de concluir o curso, não recebendo seu diploma.
+
+Por sua presença nas ofertas das universidades pelo Brasil, o objetivo do trabalho é analisar as características dos alunos de graduação em arquitetura e urbanismo no Brasil, que prestaram o ENADE (Exame Nacional de Desempenho de Estudantes) no ano de 2017.
+
+
+# **Metodologia**
+## **Pre-Tratamento Dos Microdados**
+### Ajustando as Bases
+
+O primeiro passo para analisar os microdados do ENADE 2017 é a visualização da estrutura do arquivo que contem os microdados. Para a verificação da estrutura de um arquivo, podemos usar o comando **cat** no bash, como apresentado abaixo:
+
+```
+$cat  MICRODADOS_ENADE_2017.txt
+```
+Com o comando acima, podemos verificar que os microdados possuem uma estrutura de *Comma-separated value*. O CSV é um arquivo de texto no qual os dados são separados por um delimitador, que no nosso caso é o "**;**", diferente do padrão americano no qual o delimitador é a **,**
+
+Logo o primeiro passo será importar essa base inicialmente para um banco de dados não relacional (Será utilizado o Mongodb), ao invés de importar diretamente para o software de análise. A motivação dessa escolha, é baseada na grande eficiência e capacidade de trabalhar com dados de tamanho relativamente grande, como os microdados do ENADE, assim ganhando grande desempenho na exploração do banco.
+
+Antes da importação dos dados para o banco não relacional, é necessário converter o padrão do arquivo CSV para o padrão americano. Assim é utilizado o seguinte código no bash:
+
+```
+# Caractere a ser substituido
+read -p "Enter the search string: " search
+
+# Caractere para substituir
+read -p "Enter the replace string: " replace
+
+if [[ $search != "" && $replace != "" ]]; then
+sed -i "s/$search/$replace/gi" $1
+fi
+```
+Logo devemos substituir os seguintes caracteres:
+
+-  Delimitadores de Decimal: "**,**" para "**.**"
+-  Delimitadores de Informação: "**;**" para "**,**"
+
+### Importação Dos Microdados Para Mongodb
+
+Após a transformação dos microdados para o padrão americano, é possível a importação dos dados para o banco de dados não relacional. Logo a importação para o banco de dados pode ser dada seguinte forma:
+```
+mongoimport --type csv -d db_fb -c Enade --headerline --drop MICRODADOS_ENADE_2017.txt
+```
+O comando acima permite importar o arquivo do tipo csv para o banco de dados **db_fb**, como a collection **Enade**, e permitindo que a primeira linha do banco seja a linha de variáveis, Após importamos os dados para o Mongodb, podemos verificar os campos da collection **Enade** da seguinte forma
+
+```
+db.Enade.findOne()
+```
+## **Tratando os Microdados**
+
+Agora com os microdados do ENADE 2016 importados no Mongodb, o proximo passo será tratar os microdados, preparando o banco de dados para as análises necessárias.
+
+### Utilizando os pacotes do R
+Para o tratamento dos microdados será utilizada a linguagem **R**, na qual permite uma maior capacidade de analises complexas de dados, através da grande quantidade de pacotes disponiveis.
+
+Logo serão utilizados os seguintes pacotes:
+
+- mongolite
+- PerformanceAnalytics
+- tidyr
+- plyr
+- ggplot2
+
+Para a utilização dos pacotes, inicialmente é necessário a sua instalação no computador utilizado, para isso é possível instalar os pacotes com o seguinte comando:
+
+```
+install.packages("nome do pacote")
+```
+Instalando os pacotes utilizados na analise
+```
+######Instalando o pacote para o acesso dos bancos do Mongodb
+install.packages("mongolite")
+
+######Instalando o pacote para tabelas de estatística descritiva mais amplas
+install.packages("PerformanceAnalytics")
+
+###### Instalando pacotes do tidyverse
+install.packages("tidyr")
+install.packages("plyr")
+install.packages("ggplot2")
+```
+
+Apos a instalação dos pacotes, é necessário a ativação dos pacotes externos. Para a ativação dos pacotes, pode ser utilizado o seguinte comando
+
+```
+library(nome do pacote)
+```
+
+Ativando os pacotes utilizados na analise
+```
+library(mongolite)
+library(PerformanceAnalytics)
+library(tidyr)
+library(plyr)
+library(ggplot2)
+```
+### Conectando os Microdados ao R
+Inicialmente é utilizada a função **mongo** na qual permite ao **R** acessar todos os bancos de dados e as collection presentes no Mongo. Para o acesso dos microdados do ENADE 2017, é utilizado o seguinte comando:
+
+```
+data=mongo(collection = "Enade",db = "db_fb",url = "mongodb://localhost",verbose = FALSE,options = ssl_options())
+```
+Onde cada parâmetro tem os seguintes significados:
+
+-**collection**: Nome da Collection  
+-**db**: Nome do Banco de dados  
+-**url**: Endereço do servidor do Mongodb
+
+### Limpando e Organizando os Dados
+Após conectados a base  microdados para o R, será inicialmente filtrada os dados dos alunos do curso de graduação em arquitetura, onde segundo o dicionário dos microdados do Enade 2017, corresponde ao valor **21** no campo **CO_GRUPO**.
+Já para a análise dos alunos de graduação dos cursos de arquitetura e urbanismo no Brasil, será utilizada as seguintes variáveis:
+
+- **Região** (CO_REGIAO_CURSO)
+- **Notas Gerais** (NT_OBJ_FG)
+- **Cor da Pele**  (QE_I02)
+- **Turno do Curso** (CO_TURNO_GRADUACAO)
+
+Então para importar esses campos do banco de dados do mongo para o R devemos utilizar o seguinte comando:
+
+```
+dados<-data$find('{"CO_GRUPO":21}',fields='{"NT_OBJ_FG":1,"CO_GRUPO":1,"CO_REGIAO_CURSO":1, "QE_I02":1, "CO_TURNO_GRADUACAO":1}')
+```
+
+Onde cada parâmetro tem os seguintes significados:
+
+-**$find**: Seleciona as *Collection* no banco de dados  
+-**fields**: Campos que serão retornados na seleção do banco de dados
+
+## Rotulando os Campos
+
+Após a importação dos dados para o R, o próximo passo é trabalhar e organizar todos os campos do banco de dados. De modo para economizar espaço, a confecção dos microdados do Enade é baseada em entradas numéricas, ao invés da utilização de texto.
+
+Portanto, para uma análise mais amigável e para uma melhor interpretação dos resultados, devemos substituir os valores numéricos presentes na base de dados, por seus respectivos valores presentes no dicionário, logo é utilizado os seguintes rótulos:
+
+- **Região**
+  - 1 - Norte
+  - 2 - Nordeste
+  - 3 - Centro Oeste
+  - 4 - Sudeste
+  - 5 - Sul
+
+- **Cor da Pele**
+  - A - Branca
+  - B - Preta
+  - C - Amarela
+  - D - Parda
+  - E - Indígena
+  - F - Não declarada
+
+- **Turno da Graduação**
+  - 1 - Matutino
+  - 2 - Vespertino
+  - 3 - Integral
+  - 4 - Noturno
+
+Para a modificação no banco de dados, é utilizado o seguinte código:
+- Curso
+```
+dados$CO_GRUPO[dados$CO_GRUPO==21]<-"Arquitetura e Urbanismo"
+```
+- Região
+```
+dados$CO_REGIAO_CURSO[dados$CO_REGIAO_CURSO==1]<-"Norte"
+dados$CO_REGIAO_CURSO[dados$CO_REGIAO_CURSO==2]<-"Nordeste"
+dados$CO_REGIAO_CURSO[dados$CO_REGIAO_CURSO==3]<-"Sudeste"
+dados$CO_REGIAO_CURSO[dados$CO_REGIAO_CURSO==4]<-"Sul"
+dados$CO_REGIAO_CURSO[dados$CO_REGIAO_CURSO==5]<-"Centro-Oeste"
+```
+- Cor da Pele
+```
+dados$QE_I02[dados$QE_I02=="A"]<-"Branca"
+dados$QE_I02[dados$QE_I02=="B"]<-"Preta"
+dados$QE_I02[dados$QE_I02=="C"]<-"Amarela"
+dados$QE_I02[dados$QE_I02=="D"]<-"Parda"
+dados$QE_I02[dados$QE_I02=="E"]<-"Indígenas"
+dados$QE_I02[dados$QE_I02=="F"]<-"Não quero declarar"
+```
+- Turno
+```
+dados$CO_TURNO_GRADUACAO[dados$CO_TURNO_GRADUACAO==1]<-"Matutino"
+dados$CO_TURNO_GRADUACAO[dados$CO_TURNO_GRADUACAO==2]<-"Vespetino"
+dados$CO_TURNO_GRADUACAO[dados$CO_TURNO_GRADUACAO==3]<-"Integral"
+dados$CO_TURNO_GRADUACAO[dados$CO_TURNO_GRADUACAO==4]<-"Norturno"
+```
+
+# **Resultados**
+
+##Analise da Distribuição dos Alunos de Arquitetura
+
+### Distribuição dos Alunos de Arquitetura por Região
+
+Por ser uma nação heterogêneas em aspectos sociais, econômicas e culturais, o Brasil apresenta diferentes realidades em seus territórios. A heterogeneidade é refletida na questão do mercado de trabalho, que por consequência reflete no número de alunos matriculados em cursos de graduações.
+
+Podemos verificar na figura abaixo como é distribuído o número de alunos do curso de graduação em Arquitetura e Urbanismo por Região:
+
+ ```{r fig.width = 5, fig.height = 5}
+ ggplot(data.frame(dados$CO_REGIAO_CURSO),aes(x=dados$CO_REGIAO_CURSO))+geom_bar(fill=c("darkblue"))+labs(x= "Região", y="Nº de Alunos" )
+
+ ```
+
+Na figura acima podemos ver que a região sudeste lidera com o maior número de alunos de arquitetura e urbanismo, com mais de 10000 matriculas. Já a região norte apresenta o menor número de alunos matriculados no curso, com menos de 2500 matriculas no banco de dados.
+
+O número de matrículas por região pode ser explicada pelo desenvolvimento econômico das regiões, onde a região sudeste apresenta os maiores indicadores socioeconômicos do país, assim apresentando um maior mercado consumidor, por consequência aumentando a demanda por profissionais de diversas áreas como, por exemplo, arquitetos e urbanistas.
+
+Já regiões menos desenvolvidas, como a região norte,  apresentam maiores demandas por profissionais que atuem no setor público (Médicos, Advogados, Administradores e etc), o qual participam da vida burocrática ou atuando em serviços essenciais. Já profissionais como arquitetos que possuem maior demanda por parte do mercado privado, são prejudicados por um pequena demanda de mercado, assim refletindo na menor procura da graduação de Arquitetura.
+
+### Distribuição de Notas dos Graduandos em Arquitetura
+
+O objetivo de ENADE é avaliar o rendimento dos concludentes dos cursos de graduação em relação aos conteúdos programáticos previstos nas diretrizes curriculares dos cursos, as habilidades necessárias ao aprofundamento da formação geral e profissional, e o nível de atualização dos estudantes com relação à realidade brasileira e mundial.
+
+Podemos ver na figura abaixo a distribuição das notas dos alunos que prestaram o ENADE no ano de 2017:
+
+```{r fig.width = 5, fig.height = 5}
+ggplot(data.frame(dados$NT_OBJ_FG),aes(x=dados$NT_OBJ_FG))+geom_bar(fill=c("darkblue"))+labs(x= "Nota", y="Nº de Notas" )
+```
+
+Na figura acima podemos ver que a maioria dos alunos que prestaram o exame, obtiveram uma nota próxima a 50 pontos, assim apresentando que obtiveram uma absorção regular do conteúdo apresentado nas respectivas graduações de arquitetura e urbanismo. Já alunos que apresentaram notas mais próximas das caldas, como 0 e 100, são a minoria dentre os concludentes da graduação que prestaram o exame em 2017.
+
+Também podemos concluir através a distribuição das notas apresentadas, que os dados possuem uma distribuição mesocúrtica com uma leve simetria dos dados, assim apresentando uma maior homogeneidade dos dados.
+
+### Distribuição de Alunos por Turno
+
+Outro aspecto dos cursos de graduação é a diferentes ofertas de diferentes turnos, com o objetivo de atender a demanda dos diversos alunos, onde o aluno pode escolher os turnos noturnos, matutino, vespertino ou integral, assim adequando para as suas diferentes realidades.
+
+Na figura abaixo é apresentado a distribuição dos alunos por turno
+
+```{r fig.width = 5, fig.height = 5}
+ggplot(data.frame(dados$CO_TURNO_GRADUACAO),aes(x=dados$CO_TURNO_GRADUACAO))+geom_bar(fill=c("darkblue"))+labs(x= "Turno", y="Nº de Alunos" )
+```
+
+Podemos verificar que a maioria dos alunos está matriculado em cursos do turno noturno, esse numero reflete em uma tendência de diversos alunos que trabalham no turno diário, e em seu tempo livre buscam ingressar em um curso de graduação, assim conciliando a vida profissional e acadêmica.
+
+
+### Distribuição dos Alunos por sua Cor da Pele
+
+No ano de 2003 o sistema de cotas raciais foi aprovado e implementado na Universidade de Brasília. A justificativa utilizada para implementação do sistema de cotas raciais é que os grupos específicos, em razão do processo histórico depreciativo, tiveram menor mobilidade social e oportunidades educacionais, bem como foram vítimas de discriminações nas suas interações com a sociedade.
+
+Portanto, é um objeto de interesse verificar como é a distribuição de alunos por sua cor de pele na graduação de arquitetura e urbanismo no território brasileiro, com isso é apresentado na figura abaixo a distribuição de alunos por cor de pele:
+
+```{r fig.width = 5, fig.height = 6}
+ggplot(data.frame(dados$QE_I02),aes(x=dados$QE_I02))+geom_bar(fill=c("darkblue"))+labs(x= "Cor de Pele", y="Nº de Alunos" )
+```
+
+É verificado que maioria dos graduandos em arquitetura e Urbanismo, são pessoas brancas, sendo mais de 15000 alunos, seguido por pessoas pardas com cerca de 5000 alunos. Essa discrepância de pessoas brancas no curso, é um reflexo da necessidade de políticas públicas que promovam a inclusão e o incentivo ao ingresso de alunos com diferentes tonalidades de pele
+
+
+## Como a cor da pele influência nos aspectos do curso
+
+Como apresentado anteriormente, em razão do processo histórico depreciativo, pessoas de grupos específicos foram lesadas histericamente em diversos fatores. O objetivo dessa subseção é apresentar como a cor da pele influência o desempenho na graduação de arquitetura e urbanismo no Brasil.
+
+Inicialmente será analisada as estatísticas descritivas para as diferentes categorias de tonalidades de pele classificadas pelo ENADE. Então existe a necessidade de dividir os grupos por sua tonalidade de pele, podemos dividir no **R** da seguinte forma:
+
+- Cor Preta
+```
+dados_negros<-dados[dados$QE_I02=="Preta",]
+```
+- Cor Branca
+```
+dados_brancos<-dados[dados$QE_I02=="Branca",]
+```
+- Cor Amarela
+```
+dados_amarelos<-dados[dados$QE_I02=="Amarela",]
+```
+- Cor Parda
+```
+dados_parda<-dados[dados$QE_I02=="Parda",]
+```
+- Cor Indigenas
+```
+dados_indigenas<-dados[dados$QE_I02=="Indígenas",]
+```
+
+Após dividas em diferentes grupos, podemos criar análises descritivas para os alunos com diferente tonalidade de pele, podemos através do pacote **PerformanceAnalytics** criar uma tabela descritiva completa no **R**, com o seguinte código:
+
+- Notas dos Alunos com  Cor Preta
+```
+table.Stats(dados_negros$NT_OBJ_FG)
+```
+```{r echo= FALSE}
+kable(table.Stats(dados_negros$NT_OBJ_FG),"simple")
+```
+Verificamos que os alunos negros possuem uma heterogeneidade alta, apresentando tanto alunos com nota nula e alunos com notas 100. Porem, se resumirmos as notas dos alunos negros, verificamos uma nota media de 51.97 pontos, assim quase 2 pontos a frente da mediana.
+Também é apresentado um desvio padrão de 20 pontos, se considerando que os dados seguem uma distribuição normal, podemos considerar que a probabilidade de uma aluno negro apresentar uma nota maior que 90 pontos, menor que 3\%
+Outro resultado encontrado é que a assimetria da distribuição, onde é apresentado uma assimetria negativa, ou seja, existem pessoas com maior numero de notas acima de 50.
+
+- Cor Branca
+```
+table.Stats(dados_brancos$NT_OBJ_FG
+```
+```{r echo= FALSE}
+kable(table.Stats(dados_brancos$NT_OBJ_FG),"simple")
+```
+Verificamos que os alunos brancos possuem uma heterogeneidade alta, apresentando tanto alunos com nota nula e alunos com notas 100. Porem, se resumirmos as notas dos alunos brancos, verificamos uma nota media de 54.36 pontos, assim quase 4.5 pontos a frente da mediana.
+Também é apresentado um desvio padrão de 20 pontos, se considerando que os dados seguem uma distribuição normal, podemos considerar que a probabilidade de uma aluno branco apresentar uma nota maior que 90 pontos, menor que 3\%
+Outro resultado encontrado é que a assimetria da distribuição, onde é apresentado uma assimetria negativa, ou seja, existem pessoas com maior numero de notas acima de 50.
+
+- Cor Amarela
+```
+table.Stats(dados_amarelos$NT_OBJ_FG)
+```
+```{r echo= FALSE}
+kable(table.Stats(dados_amarelos$NT_OBJ_FG),"simple")
+```
+Verificamos que os alunos amarelos possuem uma heterogeneidade alta, apresentando tanto alunos com nota nula e alunos com notas 100. Porem, se resumirmos as notas dos alunos amarelos, verificamos uma nota media de 49.86 pontos, assim quase colapsando junto a mediana.
+Também é apresentado um desvio padrão de 20 pontos, se considerando que os dados seguem uma distribuição normal, podemos considerar que a probabilidade de uma aluno amarelo apresentar uma nota maior que 90 pontos, menor que 3\%
+Outro resultado encontrado é que a assimetria da distribuição, onde é apresentado uma assimetria negativa, ou seja, existem pessoas com maior numero de notas acima de 50.
+- Cor Parda
+```
+table.Stats(dados_parda$NT_OBJ_FG)
+```
+```{r echo= FALSE}
+kable(table.Stats(dados_parda$NT_OBJ_FG),"simple")
+```
+Verificamos que os alunos pardos possuem uma heterogeneidade alta, apresentando tanto alunos com nota nula e alunos com notas 100. Porem, se resumirmos as notas dos alunos pardos, verificamos uma nota media de 51.47 pontos, assim 1.47 pontos acima da mediana
+Também é apresentado um desvio padrão de 20 pontos, se considerando que os dados seguem uma distribuição normal, podemos considerar que a probabilidade de uma aluno pardo apresentar uma nota maior que 90 pontos, menor que 3\%
+Outro resultado encontrado é que a assimetria da distribuição, onde é apresentado uma assimetria negativa, ou seja, existem pessoas com maior numero de notas acima de 50.
+
+
+- Cor Indígenas
+```
+table.Stats(dados_indigenas$NT_OBJ_FG)
+```
+```{r echo= FALSE}
+kable(table.Stats(dados_indigenas$NT_OBJ_FG),"simple")
+
+```
+Verificamos que os alunos indigenas possuem uma heterogeneidade alta, apresentando tanto alunos com nota nula e alunos com notas 87.5. Porem, se resumirmos as notas dos alunos indígenas, verificamos uma nota media de 41.96 pontos, assim apresentando o grupo com menor nota .
+Também é apresentado um desvio padrão de 20 pontos, se considerando que os dados seguem uma distribuição normal, podemos considerar que a probabilidade de uma aluno indígena apresentar uma nota maior que 90 pontos,é 0. 
+Outro resultado encontrado é que a assimetria da distribuição, onde é apresentado uma assimetria negativa, ou seja, existem pessoas com maior numero de notas acima de 50.
+
+
+
+
+Logo, verificamos que o curso de arquitetura tem uma alta frequência de alunos brancos em todas as regiões
+
+Também podemos verificar alguns gráficos descritivos para a análise:
+
+```{r, fig.width = 10, fig.height = 10,figures-side, fig.show="hold", out.width="50%"}
+
+ggplot(dados,aes(factor(CO_REGIAO_CURSO),fill=(QE_I02)))+ geom_histogram(stat="count", position = "dodge") + scale_fill_brewer(palette = "Set1")+labs(y="Nº de Aluno", x="Região")
+ggplot(dados,aes(factor(CO_TURNO_GRADUACAO),fill=(QE_I02)))+geom_histogram(stat="count",position="dodge")+scale_fill_brewer(palette="Set1") + labs(x="Turno Graduação",y="Nº de Aluno")
+```
+```{r, fig.width = 5, fig.height = 5}
+ggplot(dados, aes(x=QE_I02, y=NT_OBJ_FG)) + geom_boxplot()+labs(x="Cor da Pele",y="Nota")
+```
